@@ -1,5 +1,7 @@
 # threading
 
+*the Makefile uploaded is for the funcTest.c file
+
 create 4 threads that print 1, 2, 3, and 4 in order
 
 each thread now passes a string through queue structure and prints along with number
