@@ -38,10 +38,20 @@ int main(int argc, char** argv){
 
   initializeQueues();
   char* test = "Hello World";
+  char* test2 = "Hello Again";
+
 
   enqueue(test, &read);
   enqueue(test, &charReplaced);
   enqueue(test, &uppered);
+
+  enqueue(test2, &read);
+  enqueue(test2, &charReplaced);
+  enqueue(test2, &uppered);
+
+  printQueue(&read);
+  printQueue(&charReplaced);
+  printQueue(&uppered);
 
   printQueue(&read);
   printQueue(&charReplaced);
@@ -115,7 +125,8 @@ char* dequeue(queue* Queue){
     printf("No data available, Queue empty\n");
     return NULL;
   }else{
-    return Queue->data[Queue->front];
+    Queue->front++;
+    return Queue->data[Queue->front - 1];
   }
 }
 /*********************************************************************************/
