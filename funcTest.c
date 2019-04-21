@@ -4,8 +4,10 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+
 #define maxQueueLength 128
 #define bufferSize 512
+
 
 /////////////////////// QUEUE DEFINITION AND CREATION /////////////////////////////
 typedef struct queue_struct queue;
