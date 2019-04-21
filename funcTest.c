@@ -1,18 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 #define maxQueueLength 128
+#define bufferSize 512
 
 /////////////////////// QUEUE DEFINITION AND CREATION /////////////////////////////
 typedef struct queue_struct queue;
-struct queue_struct
-{
+struct queue_struct{
+
   char* data[maxQueueLength];
   int front;                ////front indicates the next index to be read
                               //if it is -1 this indicates the queue is empty
+
   int back;                 ////back indicates the next empty index to store data
   //enqueue sets back to 0 if it would be set to maxQueueLength
-  //this also then checks if front = back, which means the queue is full
+  //and also checks if front = back, which means the queue is full
   //and the calling function must wait for space to becomes available.
 };
 queue read;
@@ -22,11 +27,12 @@ queue uppered;
 
 
 ////////////////////////// FUNCTION PROTOTYPES ////////////////////////////////////
+void initializeQueues();
+void printQueue(queue* pq);
 int enqueue(char* string, queue* Queue); //returns 0 on success, -1 on failure
 char* dequeue(queue* Queue); //returns NULL on failure
-void printQueue(queue* pq);
-void initializeQueues();
-void reader(char* fileName);
+
+void reader(const char* fileName);
 void character(char newChar);
 void toUpper();
 void writer();
@@ -37,27 +43,30 @@ void writer();
 int main(int argc, char** argv){
 
   initializeQueues();
-  char* test = "Hello World";
-  char* test2 = "Hello Again";
 
-
-  enqueue(test, &read);
-  enqueue(test, &charReplaced);
-  enqueue(test, &uppered);
-
-  enqueue(test2, &read);
-  enqueue(test2, &charReplaced);
-  enqueue(test2, &uppered);
-
+  printf("Running reader...\nread queue:\n");
+  reader("testFile.txt");
   printQueue(&read);
-  printQueue(&charReplaced);
-  printQueue(&uppered);
+  printf("\n");
 
+  printf("Running character...\ncharReplaced queue:\n");
+  character('_');
+  printQueue(&charReplaced);
+  printf("\n");
+
+  printf("Running toUpper...\nuppered queue:\n");
+  toUpper();
+  printQueue(&uppered);
+  printf("\n");
+
+  printf("Running toUpper...\nqueue final stats:\n");
+  writer();
+  printf("read:\n");
   printQueue(&read);
+  printf("charReplaced:\n");
   printQueue(&charReplaced);
+  printf("uppered:\n");
   printQueue(&uppered);
-
-
   return 0;
 }
 /*********************************************************************************/
@@ -85,7 +94,7 @@ void printQueue(queue* pq){
     printf("Queue has been emptied\n");
   }else{
     while(temp != pq->back){
-      printf("At index %d: %s\n", temp, dequeue(pq));
+      printf("At index %d: %s", temp, pq->data[temp]);
       temp++;
     }
   }
@@ -93,14 +102,16 @@ void printQueue(queue* pq){
 }
 /*********************************************************************************/
 
+
 ///////////////////////// ADD DATA TO THE FRONT OF A QUEUE ///////////////////////
 int enqueue(char* string, queue* Queue){
 
   if(Queue->back == maxQueueLength){            //provide queue wrapping
-    if(Queue->data[0] == NULL){
+    if(Queue->front == 0){
       printf("Unable to add data, Queue full\n");
       return -1;
     }else{
+
       Queue->back = 0;
     }
   }
@@ -111,6 +122,7 @@ int enqueue(char* string, queue* Queue){
     if(Queue->front == -1){
       Queue->front = 0;
     }
+
     Queue->data[Queue->back] = string;
     Queue->back++;
   }
@@ -122,19 +134,32 @@ int enqueue(char* string, queue* Queue){
 /////////////////////// RETURN THE FIRST ITEM FROM A QUEUE ///////////////////////
 char* dequeue(queue* Queue){
   if(Queue->front == -1 || Queue->front == Queue->back){
-    printf("No data available, Queue empty\n");
+    //printf("No data available, Queue empty\n");
     return NULL;
   }else{
-    Queue->front++;
-    return Queue->data[Queue->front - 1];
+    if(Queue->front == maxQueueLength - 1){
+      Queue->front = 0;
+      return Queue->data[maxQueueLength];
+    }else{
+      Queue->front++;
+      return Queue->data[Queue->front - 1];
+    }
   }
 }
 /*********************************************************************************/
 
 
 ///////////////////////// READ FROM FILE TO FIRST QUEUE //////////////////////////
-void reader(char* fileName)
+void reader(const char* fileName)
 {
+  FILE* fp = fopen(fileName, "r");
+  char* temp;
+  char buff[bufferSize];
+  while(fgets(buff, bufferSize, fp) != NULL){
+    temp = malloc(sizeof(char) * (strlen(buff) + 1));
+    strcpy(temp, buff);
+    enqueue(temp, &read);
+  }
 
   return;
 }
@@ -144,7 +169,16 @@ void reader(char* fileName)
 ////////////////// REPLACE EACH SPACE WITH SPECIFIED CHAR ////////////////////////
 void character(char newChar)
 {
-
+  char* temp;
+  while(temp = dequeue(&read)){
+    int i;
+    for(i = 0; i < strlen(temp) - 1; i++){
+      if(isspace(temp[i])){
+        temp[i] = newChar;
+      }
+    }
+    enqueue(temp, &charReplaced);
+  }
   return;
 }
 /*********************************************************************************/
@@ -153,7 +187,14 @@ void character(char newChar)
 ////////////////////// MAKE EACH CHARACTER UPPERCASE /////////////////////////////
 void toUpper()
 {
-
+  char* temp;
+  while(temp = dequeue(&charReplaced)){
+    int i;
+    for(i = 0; i < strlen(temp) - 1; i++){
+        temp[i] = toupper(temp[i]);
+    }
+    enqueue(temp, &uppered);
+  }
   return;
 }
 /*********************************************************************************/
@@ -162,7 +203,12 @@ void toUpper()
 ////////////////// WRITE FINISHED LINES TO OUTPUT FILE ///////////////////////////
 void writer()
 {
-
+  char* temp;
+  FILE* fp = fopen("output.txt", "w");
+  while(temp = dequeue(&uppered)){
+    fprintf(fp, "%s", temp);
+    free(temp);
+  }
   return;
 }
 /*********************************************************************************/
