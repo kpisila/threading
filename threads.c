@@ -6,14 +6,16 @@
 #include <pthread.h>
 
 
-#define maxQueueLength 128
+#define maxQueueLength 10
 #define bufferSize 512
 #define NUM_THREADS 4
 
 char newChar;
 char* fileName;
 bool isDone = 0;
-
+pthread_mutex_t readMutex;
+pthread_mutex_t charReplacedMutex;
+pthread_mutex_t upperedMutex;
 
 /////////////////////// QUEUE DEFINITION AND CREATION /////////////////////////////
 typedef struct queue_struct queue;
@@ -28,7 +30,7 @@ struct queue_struct
   //and also checks if front = back, which means the queue is full
   //and the calling function must wait for space to becomes available.
 
-  pthread_mutex_t mutex;
+
 };
 queue read;
 queue charReplaced;
@@ -108,15 +110,12 @@ void initializeQueues()
 {
   read.front = -1;
   read.back  =  0;
-  read.mutex = PTHREAD_MUTEX_INITIALIZER;
 
   charReplaced.front = -1;
   charReplaced.back  =  0;
-  charReplaced.mutex = PTHREAD_MUTEX_INITIALIZER;
 
   uppered.front = -1;
   uppered.back  =  0;
-  uppered.mutex = PTHREAD_MUTEX_INITIALIZER;
 }
 /*********************************************************************************/
 
@@ -198,14 +197,14 @@ void* reader()
     temp = malloc(sizeof(char) * (strlen(buff) + 1));
     strcpy(temp, buff);
 
-    pthread_mutex_lock(&read.mutex);
+    pthread_mutex_lock(&readMutex);
     enqueue(temp, &read);
-    pthread_mutex_unlock(&read.mutex);
+    pthread_mutex_unlock(&readMutex);
   }
 
   isDone = 1;
 
-  return;
+  return NULL;
 }
 /*********************************************************************************/
 
@@ -218,13 +217,13 @@ void* character()
   {
     while(1)
     {
-      pthread_mutex_lock(&read.mutex);
+      pthread_mutex_lock(&readMutex);
       if(!(temp = dequeue(&read)) )
       {
-        pthread_mutex_unlock(&read.mutex);
+        pthread_mutex_unlock(&readMutex);
         break;
       }
-      pthread_mutex_unlock(&read.mutex);
+      pthread_mutex_unlock(&readMutex);
 
       int i;
       for(i = 0; i < strlen(temp) - 1; i++)
@@ -234,13 +233,13 @@ void* character()
           temp[i] = newChar;
         }
       }
-      pthread_mutex_lock(&charReplaced.mutex);
+      pthread_mutex_lock(&charReplacedMutex);
       enqueue(temp, &charReplaced);
-      pthread_mutex_unlock(&charReplaced.mutex);
+      pthread_mutex_unlock(&charReplacedMutex);
     }
   } while(!isDone);
 
-  return;
+  return NULL;
 }
 /*********************************************************************************/
 
@@ -253,13 +252,13 @@ void* toUpper()
   {
     while(1)
     {
-      pthread_mutex_lock(&charReplaced.mutex);
+      pthread_mutex_lock(&charReplacedMutex);
       if(!(temp = dequeue(&charReplaced)) )
       {
-        pthread_mutex_unlock(&charReplaced.mutex);
+        pthread_mutex_unlock(&charReplacedMutex);
         break;
       }
-      pthread_mutex_unlock(&charReplaced.mutex);
+      pthread_mutex_unlock(&charReplacedMutex);
 
       int i;
       for(i = 0; i < strlen(temp) - 1; i++)
@@ -267,12 +266,12 @@ void* toUpper()
           temp[i] = toupper(temp[i]);
       }
 
-      pthread_mutex_lock(&uppered.mutex);
+      pthread_mutex_lock(&upperedMutex);
       enqueue(temp, &uppered);
-      pthread_mutex_unlock(&uppered.mutex);
+      pthread_mutex_unlock(&upperedMutex);
     }
   } while(!isDone);
-  return;
+  return NULL;
 }
 /*********************************************************************************/
 
@@ -287,19 +286,19 @@ void* writer()
   {
     while(1)
     {
-      pthread_mutex_lock(&uppered.mutex);
+      pthread_mutex_lock(&upperedMutex);
       if(!(temp = dequeue(&uppered)) )
       {
-        pthread_mutex_unlock(&uppered.mutex);
+        pthread_mutex_unlock(&upperedMutex);
         break;
       }
-      pthread_mutex_unlock(&uppered.mutex);
+      pthread_mutex_unlock(&upperedMutex);
 
       fprintf(fp, "%s", temp);
       free(temp);
     }
   } while(!isDone);
 
-  return;
+  return NULL;
 }
 /*********************************************************************************/
