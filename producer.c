@@ -173,7 +173,7 @@ int enqueue(char* string, queue* Queue){
 /////////////////////// RETURN THE FIRST ITEM FROM A QUEUE ///////////////////////
 char* dequeue(queue* Queue){
   if(Queue->front == -1 || Queue->front == Queue->back){
-    //printf("No data available, Queue empty\n");
+    printf("No data available, Queue empty\n");
     return NULL;
   }else{
     if(Queue->front == maxQueueLength - 1){
@@ -202,13 +202,17 @@ void* reader()
 
     pthread_mutex_lock(&readMutex);
     printf("reader in critial area\n");
-    enqueue(temp, &read);
+    while(enqueue(temp, &read) == -1){
+      pthread_mutex_unlock(&readMutex);
+      pthread_mutex_lock(&readMutex);
+      printf("reader back in critial area\n");
+    };
     //printQueue(&read);
     pthread_mutex_unlock(&readMutex);
   }
 
   readIsDone = 1;
-
+  fclose(fp);
   return NULL;
 }
 /*********************************************************************************/
@@ -241,7 +245,10 @@ void* character()
       }
       pthread_mutex_lock(&charReplacedMutex);
       printf("character in critial area for charReplaced\n");
-      enqueue(temp, &charReplaced);
+      while(enqueue(temp, &charReplaced) == -1){
+          pthread_mutex_unlock(&charReplacedMutex);
+          pthread_mutex_lock(&charReplacedMutex);
+      }
       pthread_mutex_unlock(&charReplacedMutex);
     }
   } while(!readIsDone);
@@ -277,11 +284,14 @@ void* toUpper()
 
       pthread_mutex_lock(&upperedMutex);
       printf("toUpper in critical area for uppered\n");
-      enqueue(temp, &uppered);
+      while(enqueue(temp, &uppered) == -1){
+        pthread_mutex_unlock(&upperedMutex);
+        pthread_mutex_lock(&upperedMutex);
+      }
       pthread_mutex_unlock(&upperedMutex);
     }
   } while(!charIsDone);
-  printQueue(&uppered);
+  //printQueue(&uppered);
   upperIsDone = 1;
   return NULL;
 }
@@ -299,6 +309,7 @@ void* writer()
     while(1)
     {
       pthread_mutex_lock(&upperedMutex);
+      printf("writer in critical area for uppered\n");
       if(!(temp = dequeue(&uppered)) )
       {
         pthread_mutex_unlock(&upperedMutex);
@@ -307,10 +318,13 @@ void* writer()
       pthread_mutex_unlock(&upperedMutex);
 
       fprintf(fp, "%s", temp);
-      free(temp);
-    }
-  } while(!upperIsDone);
+      printf("freeing\n");
 
+    }
+    free(temp);
+  } while(!upperIsDone);
+  fclose(fp);
+  printf("writer done\n");
   return NULL;
 }
 /*********************************************************************************/
