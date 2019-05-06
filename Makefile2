@@ -1,7 +1,0 @@
-LFLAG=-lpthread
-
-producer: producer.c
-	gcc producer.c -o producer $(LFLAG)
-	./producer
-clean:
-rm -rf producer producer.dSYM
