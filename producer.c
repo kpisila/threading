@@ -62,33 +62,8 @@ int main(int argc, char** argv)
 
   strcpy(fileName, argv[1]);
   newChar = argv[2][0];
-  printf("File: %s\tChar: %c\n", fileName, newChar);
 
   initializeQueues();
-
-  // printf("Running reader...\nread queue:\n");
-  // reader("testFile.txt");
-  // printQueue(&read);
-  // printf("\n");
-  //
-  // printf("Running character...\ncharReplaced queue:\n");
-  // character('_');
-  // printQueue(&charReplaced);
-  // printf("\n");
-  //
-  // printf("Running toUpper...\nuppered queue:\n");
-  // toUpper();
-  // printQueue(&uppered);
-  // printf("\n");
-  //
-  // printf("Running toUpper...\nqueue final stats:\n");
-  // writer();
-  // printf("read:\n");
-  // printQueue(&read);
-  // printf("charReplaced:\n");
-  // printQueue(&charReplaced);
-  // printf("uppered:\n");
-  // printQueue(&uppered);
 
   pthread_create(&producerThreads[0], NULL, reader, NULL);
   pthread_create(&producerThreads[1], NULL, character, NULL);
@@ -100,8 +75,6 @@ int main(int argc, char** argv)
   {
     pthread_join(producerThreads[i], NULL);
   }
-
-  printf("Threads Done!\n");
 
   return 0;
 }
@@ -147,7 +120,6 @@ int enqueue(char* string, queue* Queue){
 
   if(Queue->back == maxQueueLength){            //provide queue wrapping
     if(Queue->front == 0){
-      printf("Unable to add data, Queue full at end\n");
       return -1;
     }else{
 
@@ -155,7 +127,6 @@ int enqueue(char* string, queue* Queue){
     }
   }
   if(Queue->front - 1 == Queue->back){             //check for full queue
-    printf("Unable to add data, Queue full\n");
     return -1;
   }else{
     if(Queue->front == -1){
@@ -172,11 +143,10 @@ int enqueue(char* string, queue* Queue){
 
 /////////////////////// RETURN THE FIRST ITEM FROM A QUEUE ///////////////////////
 char* dequeue(queue* Queue){
-  if(Queue->front == -1 || Queue->front == Queue->back){
-    printf("No data available, Queue empty\n");
+  if(Queue->front == -1 || Queue->front == Queue->back){ //check for empty queue
     return NULL;
   }else{
-    if(Queue->front == maxQueueLength - 1){
+    if(Queue->front == maxQueueLength - 1){ //check for queue wrapping
       Queue->front = 0;
       return Queue->data[maxQueueLength - 1];
     }else{
@@ -201,13 +171,10 @@ void* reader()
     strcpy(temp, buff);
 
     pthread_mutex_lock(&readMutex);
-    printf("reader in critial area\n");
     while(enqueue(temp, &read) == -1){
       pthread_mutex_unlock(&readMutex);
       pthread_mutex_lock(&readMutex);
-      printf("reader back in critial area\n");
     };
-    //printQueue(&read);
     pthread_mutex_unlock(&readMutex);
   }
 
@@ -227,7 +194,6 @@ void* character()
     while(1)
     {
       pthread_mutex_lock(&readMutex);
-      printf("character in critial area for read\n");
       if(!(temp = dequeue(&read)) )
       {
         pthread_mutex_unlock(&readMutex);
@@ -244,7 +210,6 @@ void* character()
         }
       }
       pthread_mutex_lock(&charReplacedMutex);
-      printf("character in critial area for charReplaced\n");
       while(enqueue(temp, &charReplaced) == -1){
           pthread_mutex_unlock(&charReplacedMutex);
           pthread_mutex_lock(&charReplacedMutex);
@@ -252,7 +217,6 @@ void* character()
       pthread_mutex_unlock(&charReplacedMutex);
     }
   } while(!readIsDone);
-  //printQueue(&charReplaced);
   charIsDone = 1;
   return NULL;
 }
@@ -268,7 +232,6 @@ void* toUpper()
     while(1)
     {
       pthread_mutex_lock(&charReplacedMutex);
-      printf("toUpper in critical area for charReplaced\n");
       if(!(temp = dequeue(&charReplaced)) )
       {
         pthread_mutex_unlock(&charReplacedMutex);
@@ -283,7 +246,6 @@ void* toUpper()
       }
 
       pthread_mutex_lock(&upperedMutex);
-      printf("toUpper in critical area for uppered\n");
       while(enqueue(temp, &uppered) == -1){
         pthread_mutex_unlock(&upperedMutex);
         pthread_mutex_lock(&upperedMutex);
@@ -291,11 +253,11 @@ void* toUpper()
       pthread_mutex_unlock(&upperedMutex);
     }
   } while(!charIsDone);
-  //printQueue(&uppered);
   upperIsDone = 1;
   return NULL;
 }
 /*********************************************************************************/
+
 
 
 ////////////////// WRITE FINISHED LINES TO OUTPUT FILE ///////////////////////////
@@ -309,7 +271,6 @@ void* writer()
     while(1)
     {
       pthread_mutex_lock(&upperedMutex);
-      printf("writer in critical area for uppered\n");
       if(!(temp = dequeue(&uppered)) )
       {
         pthread_mutex_unlock(&upperedMutex);
@@ -318,13 +279,10 @@ void* writer()
       pthread_mutex_unlock(&upperedMutex);
 
       fprintf(fp, "%s", temp);
-      printf("freeing\n");
-
     }
     free(temp);
   } while(!upperIsDone);
   fclose(fp);
-  printf("writer done\n");
   return NULL;
 }
 /*********************************************************************************/
