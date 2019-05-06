@@ -1,7 +1,8 @@
 LFLAG=-lpthread
 
-lab7: funcTest.c
-	gcc funcTest.c -o test $(LFLAG)
-	./test
+producer: producer.c
+	gcc producer.c -o producer $(LFLAG)
+	gcc consumer.c -o consumer $(LFLAG)
 clean:
-	rm -rf test test.dSYM
+	rm -rf producer producer.dSYM
+	rm -rf consumer consumer.dSYM
