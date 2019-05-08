@@ -12,9 +12,9 @@
 
 char newChar;
 char fileName[32];
-bool readIsDone = 0;
-bool charIsDone = 0;
-bool upperIsDone = 0;
+bool readIsDone = 0;  //used to tell other threads that reader is done
+bool charIsDone = 0;  //used to tell other threads that character is done
+bool upperIsDone = 0; //used to tell other threads that toUpper is done
 
 pthread_mutex_t readMutex;
 pthread_mutex_t charReplacedMutex;
@@ -166,19 +166,26 @@ void* reader()
   char buff[bufferSize];
 
   while(fgets(buff, bufferSize, fp) != NULL)
-  {
+  { //read until eof 1 line at a time
     temp = malloc(sizeof(char) * (strlen(buff) + 1));
     strcpy(temp, buff);
 
-    pthread_mutex_lock(&readMutex);
-    while(enqueue(temp, &read) == -1){
+    pthread_mutex_lock(&readMutex); //lock while utilizing queue (shared resource)
+    while(enqueue(temp, &read) == -1)
+    { //try to enqueue until it succedes
       pthread_mutex_unlock(&readMutex);
+      //allow other thread to take mutex
+      //to make space in queue
+      
       pthread_mutex_lock(&readMutex);
-    };
-    pthread_mutex_unlock(&readMutex);
+      //regrab mutex
+      
+    }
+    pthread_mutex_unlock(&readMutex); 
+    //free mutex
   }
-
-  readIsDone = 1;
+  
+  readIsDone = TRUE; 
   fclose(fp);
   return NULL;
 }
@@ -193,31 +200,41 @@ void* character()
   {
     while(1)
     {
-      pthread_mutex_lock(&readMutex);
+      pthread_mutex_lock(&readMutex); //lock while utilizing queue (shared resource)
       if(!(temp = dequeue(&read)) )
-      {
+      { //try to read, and if empty, release mutex & retry
         pthread_mutex_unlock(&readMutex);
         break;
       }
       pthread_mutex_unlock(&readMutex);
+      //free mutex
 
       int i;
       for(i = 0; i < strlen(temp) - 1; i++)
-      {
+      { //iterates through line
         if(isspace(temp[i]))
-        {
+        { //replaces spaces with specified character
           temp[i] = newChar;
         }
       }
-      pthread_mutex_lock(&charReplacedMutex);
-      while(enqueue(temp, &charReplaced) == -1){
+      
+      pthread_mutex_lock(&charReplacedMutex); //lock while utilizing queue (shared resource)
+      while(enqueue(temp, &charReplaced) == -1)
+      { //try to enqueue until it works
           pthread_mutex_unlock(&charReplacedMutex);
+          //allow other thread to take mutex
+          //to make space in queue
+        
           pthread_mutex_lock(&charReplacedMutex);
+          //regrab mutex
       }
       pthread_mutex_unlock(&charReplacedMutex);
+      //free mutex
+      
     }
-  } while(!readIsDone);
-  charIsDone = 1;
+  } while(!readIsDone); //end thread after reader thread completes
+  
+  charIsDone = TRUE;
   return NULL;
 }
 /*********************************************************************************/
@@ -231,26 +248,34 @@ void* toUpper()
   {
     while(1)
     {
-      pthread_mutex_lock(&charReplacedMutex);
+      pthread_mutex_lock(&charReplacedMutex); //lock while utilizing queue (shared resource)
       if(!(temp = dequeue(&charReplaced)) )
-      {
+      { //try to read, if empty, release mutex & try again
         pthread_mutex_unlock(&charReplacedMutex);
         break;
       }
       pthread_mutex_unlock(&charReplacedMutex);
+      //free mutex
 
       int i;
       for(i = 0; i < strlen(temp) - 1; i++)
-      {
+      { //make characters uppercase
           temp[i] = toupper(temp[i]);
       }
 
-      pthread_mutex_lock(&upperedMutex);
-      while(enqueue(temp, &uppered) == -1){
+      pthread_mutex_lock(&upperedMutex); //lock while utilizing queue (shared resource)
+      while(enqueue(temp, &uppered) == -1)
+      { //try to enqueue until it works 
         pthread_mutex_unlock(&upperedMutex);
+        //allow other thread to take mutex
+        //to make space in queue
+        
         pthread_mutex_lock(&upperedMutex);
+        //regrab mutex
       }
       pthread_mutex_unlock(&upperedMutex);
+      //free mutex
+      
     }
   } while(!charIsDone);
   upperIsDone = 1;
@@ -270,17 +295,19 @@ void* writer()
   {
     while(1)
     {
-      pthread_mutex_lock(&upperedMutex);
+      pthread_mutex_lock(&upperedMutex); //lock while utilizing queue (shared resource)
       if(!(temp = dequeue(&uppered)) )
-      {
+      { //try to read, if empty, release mutex & try again
         pthread_mutex_unlock(&upperedMutex);
         break;
       }
       pthread_mutex_unlock(&upperedMutex);
+      //free mutex
 
       fprintf(fp, "%s", temp);
     }
     free(temp);
+    
   } while(!upperIsDone);
   fclose(fp);
   return NULL;
